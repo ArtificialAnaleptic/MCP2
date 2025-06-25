@@ -1393,7 +1393,7 @@ async def get_finviz_news(
 
 
 @mcp.tool()
-async def get_reddit_url(
+async def get_reddit_news(
     company: Annotated[
         str,
         {
