@@ -14,7 +14,7 @@ newsapi-python
 sec-api
 sec-parser
 streamlit
-mcp
+mcp==1.9.0
 mem0ai
 # selenium
 playwright==1.51.0
