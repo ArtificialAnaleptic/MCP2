@@ -1,0 +1,140 @@
+sources:
+  stockcharts:
+    name: "StockCharts"
+    description: "StockCharts is a website that provides technical analysis and charting for stocks, bonds, and other financial instruments."
+    url_template: "https://stockcharts.com/h-sc/ui?s={symbol}&id=p33407302522&def=Y&listNum=1#"
+    required_params: ["symbol"]
+    wait_strategy: "networkidle"  # Wait for charts to load
+    rate_limit: 2.0  # seconds between requests
+    data_type: "technical"
+
+  bloomberg:
+    name: "Bloomberg"
+    description: "Search Bloomberg headlines for a given company name."
+    url_template: "https://www.bloomberg.com/search?query={company}"
+    required_params: ["company"]
+    wait_strategy: "load"
+    rate_limit: 3.0
+    data_type: "news"
+
+  reuters:
+    name: "Reuters"
+    description: "Search Reuters headlines for a given company name."
+    url_template: "https://www.reuters.com/site-search/?query={company}&offset=0"
+    required_params: ["company"]
+    wait_strategy: "load"
+    rate_limit: 2.5
+    data_type: "news"
+
+  yahoo_news:
+    name: "Yahoo Finance News"
+    description: "Search Yahoo Finance headlines for a given stock symbol."
+    url_template: "https://finance.yahoo.com/quote/{symbol}/news"
+    required_params: ["symbol"]
+    wait_strategy: "load"
+    rate_limit: 1.5
+    data_type: "news"
+
+  yahoo_stats:
+    name: "Yahoo Finance Statistics"
+    description: "Search Yahoo Finance key statistics for a given stock symbol."
+    url_template: "https://finance.yahoo.com/quote/{symbol}/key-statistics"
+    required_params: ["symbol"]
+    wait_strategy: "load"
+    rate_limit: 1.5
+    data_type: "fundamental"
+
+  ft:
+    name: "Financial Times"
+    description: "Search Financial Times headlines for a given company name."
+    url_template: "https://www.ft.com/search?q={company}"
+    required_params: ["company"]
+    wait_strategy: "load"
+    rate_limit: 4.0  # FT is strict about rate limiting
+    data_type: "news"
+
+  barrons:
+    name: "Barrons"
+    description: "Search Barrons headlines for a given stock symbol and company name."
+    url_template: "https://www.barrons.com/market-data/stocks/{symbol}?mod=searchresults_companyquotes&mod=searchbar&search_keywords={company}&search_statement_type=suggested"
+    required_params: ["symbol", "company"]
+    wait_strategy: "networkidle"
+    rate_limit: 3.0
+    data_type: "analysis"
+
+  business_insider:
+    name: "Business Insider"
+    description: "Search Business Insider headlines for a given company name."
+    url_template: "https://www.businessinsider.com/answers#{company}"
+    required_params: ["company"]
+    wait_strategy: "load"
+    rate_limit: 2.0
+    data_type: "news"
+
+  google_finance:
+    name: "Google Finance"
+    description: "Search Google Finance for a given stock symbol and exchange."
+    url_template: "https://www.google.com/finance/quote/{symbol}:{exchange}"
+    required_params: ["symbol", "exchange"]
+    exchange_mappings: "google"
+    wait_strategy: "networkidle"
+    rate_limit: 1.0
+    data_type: "fundamental"
+
+  finviz:
+    name: "FinViz"
+    description: "Search FinViz for a given stock symbol."
+    url_template: "https://finviz.com/quote.ashx?t={symbol}&p=d"
+    required_params: ["symbol"]
+    wait_strategy: "load"
+    rate_limit: 2.0
+    data_type: "technical"
+
+  reddit:
+    name: "Reddit"
+    description: "Search Reddit for a given company name."
+    url_template: "https://www.reddit.com/search?q={company}&include_over_18=on&sort=relevance&t=all"
+    required_params: ["company"]
+    wait_strategy: "load"
+    rate_limit: 1.0
+    data_type: "sentiment"
+
+  morningstar:
+    name: "Morningstar"
+    description: "Search Morningstar for a given stock symbol and exchange."
+    url_template: "https://www.morningstar.com/stocks/{exchange}/{symbol}/quote"
+    required_params: ["symbol", "exchange"]
+    exchange_mappings: "morningstar"
+    wait_strategy: "networkidle"
+    rate_limit: 3.0
+    data_type: "fundamental"
+
+  whalewisdom:
+    name: "WhaleWisdom"
+    description: "Search WhaleWisdom for a given stock symbol."
+    url_template: "https://whalewisdom.com/stock/{symbol}"
+    required_params: ["symbol"]
+    wait_strategy: "load"
+    rate_limit: 2.0
+    data_type: "institutional"
+
+  gurufocus:
+    name: "GuruFocus"
+    description: "Search GuruFocus for a given stock symbol."
+    url_template: "https://www.gurufocus.com/stock/{symbol}/guru-trades"
+    required_params: ["symbol"]
+    wait_strategy: "networkidle"
+    rate_limit: 2.5
+    data_type: "institutional"
+
+# Exchange mappings for different platforms
+exchange_mappings:
+  morningstar:
+    NASDAQ: "xnas"
+    NYSE: "xnys"
+    TSX: "xtse"
+
+  google:
+    NASDAQ: "NASDAQ"
+    NYSE: "NYSE"
+    TSX: "TSE"

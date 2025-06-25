@@ -1,0 +1,25 @@
+ipykernel
+python-dotenv
+openai
+openbb[all]
+tiktoken
+pydantic #
+langchain
+langchain-openai
+langchain-community
+magentic
+wikipedia
+# edgartools
+newsapi-python
+sec-api
+sec-parser
+streamlit
+mcp
+mem0ai
+# selenium
+playwright==1.51.0
+playwright-stealth==1.0.6
+TA-Lib
+pandas-ta
+plotly
+kaleido
