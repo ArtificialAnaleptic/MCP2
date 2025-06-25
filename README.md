@@ -23,8 +23,7 @@ While it's not a fully autonomous agent and at an early POC level, it shows clea
 * **Technical analysis** – hundreds of indicators with `pandas_ta` & `TA-Lib`.
 * **Interactive plots** – high-quality Plotly charts exported server-side (static PNG or interactive HTML).
 * **Async-first design** – built on `asyncio`, `aiohttp`, `httpx` & Playwright for maximum throughput.
-
-(this section AI-generated so beware of hype. new project would like to share and get comments, not extensively tested. Use it as a starting point, at your own risk.)
+- this section AI-generated so beware of hype. New project, would like to share and get comments, not extensively tested. Use it as a starting point, at your own risk.
 ---
 
 ## Quick Start
