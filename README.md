@@ -69,7 +69,7 @@ MCP/
 ├── server.py              # FastMCP server, launched by mcp dev or Claude desktop or other MCP client
 ├── requirements.txt       # Python dependencies
 ├── sources.yaml           # Data-source configuration used by server
+├── Market Data.ipynb      # Jupyter notebook to fetch market data
+├── TearSheet.ipynb        # Jupyter notebook to do basic analysis
+
 ```
-
----
-
