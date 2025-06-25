@@ -1,0 +1,67 @@
+We will be using installed tools to analyze IonQ Inc (symbol: IONQ)
+
+use the make_stock_chart tool to get a chart of IONQ
+
+use the fetch_technical_analysis tool to run a technical analysis summary for IONQ
+
+use the fetch_peers tool to make a list of comparable companies to IONQ
+
+use the get_yahoo_stats tool to get fundamental summary data for IONQ
+
+use news and research tools and web search and tell me what is the latest news for IONQ
+
+get_bloomberg_news
+get_reuters_news
+get_yahoo_news
+get_google_finance_news
+get_finviz_news
+get_reddit_news
+use get_morningstar_research to get recent research
+
+summarize IONQ's business profile using perplexity
+
+summarize IONQ's business profile using wikipedia
+
+summarize IONQ's business from the sec 10-k item 1
+
+based on everything we discussed so far and anything else you can find on the Web and using tools, write a comprehensive summary of IONQ's business, its fundamental valuation, and technical setup.
+
+that's great. let's dive even deeper.  Create a deep research report on IONQ in the straightforward factual style of a Wall Street equity research analyst,in 8 sections:
+
+1. Profile
+• history with origin story and key historical milestones
+• core business and competitors
+•.recent major news
+
+2. Business Model:
+• Describe their core businesses, products and services.
+• Outline their key revenue streams, customer segments, and monetization strategies.
+• Explain any sources of competitive advantage such as network effects, switching costs, regulatory moats.
+
+3. Competitive Landscape:
+• Identify their main competitors, including direct, adjacent, and emerging competitors.
+• Compare key metrics such as market share, product differentiation, pricing power, and growth trajectories.
+
+4. Supply Chain Positioning:
+• Describe their role in the upstream (supplier-side) and downstream (customer/distribution) parts of the supply chain.
+• Identify key suppliers, partners, distributors, and any major dependencies or concentrations.
+
+5. Financial and Operating Leverage:
+• Analyze the company’s use of financial leverage (debt levels, interest obligations, credit ratings).
+• Analyze operating leverage (fixed vs. variable cost structure, scalability, margin sensitivity to revenue changes).
+
+6. Valuation:
+• Identify appropriate valuation methodologies, including income-based (e.g., DCF), asset-based (eg book value and sum of parts), market-based (e.g. comps), and LBO analysis
+• Highlight important valuation inputs and metrics (growth rates, margins, discount rates, terminal value assumptions).
+
+7. Recent developments, News Search and Risk Factors:
+• Conduct a deep news search for significant positive and negative news items, including:
+• Short-seller reports or allegations.
+• Regulatory investigations or lawsuits.
+• Product failures, operational issues, or supply chain disruptions.
+• Major wins (e.g., partnerships, large customer wins, successful product launches).
+• Summarize key themes from recent media coverage, analyst reports, and public filings.
+• Note controversies, reputational risks, and governance concerns if any.
+
+8. Overall Assessment:
+• Summarize the company’s strategic position, risks, opportunities, and any “watch points” for further diligence.
