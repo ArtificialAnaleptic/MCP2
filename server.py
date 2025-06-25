@@ -26,6 +26,9 @@ $ LOGLEVEL=DEBUG mcp dev server.py
 Run for production with (or just use in Claude Desktop):
 $ mcp run server.py
 """
+
+# test fetch url , get morningstar with login
+import secrets
 import time
 import re
 import random
@@ -64,10 +67,6 @@ import pandas as pd
 import pandas_ta as ta
 import aiohttp
 import importlib
-print("PYTHON:", sys.executable)
-print("VERSION:", sys.version)
-print("importlib module:", importlib.__file__)
-
 
 # import openbb
 # from openbb_core.app.model.obbject import OBBject
@@ -358,114 +357,6 @@ class StockDataExtractor:
         mappings = self.context.exchanges.get(source_key, {})
         return mappings.get(exchange, exchange)
 
-    def extract_from_source(
-        self,
-        source_key: str,
-        symbol: Optional[str] = None,
-        company: Optional[str] = None,
-        exchange: Optional[str] = None,
-        test: bool = False
-    ) -> Optional[Dict[str, Any]]:
-        """Extract data from a specific source."""
-
-        if source_key not in self.context.sources:
-            raise ValueError(f"Unknown source: {source_key}")
-
-        source_config = self.context.sources[source_key]
-
-        # Check required parameters
-        params = {"symbol": symbol, "company": company, "exchange": exchange}
-
-        # Handle special exchange mappings
-        if exchange and source_key in self.context.exchanges:
-            if source_key == "morningstar":
-                params["exchange"] = self.map_exchange(
-                    "morningstar", exchange)
-            elif source_key == "google_finance":
-                params["exchange"] = self.map_exchange("google", exchange)
-
-        # Validate required parameters
-        missing_params = []
-        for required_param in source_config.required_params:
-            if not params.get(required_param):
-                missing_params.append(required_param)
-
-        if missing_params:
-            raise ValueError(
-                f"Missing required parameters for {source_config.name}: {missing_params}")
-
-        # Respect rate limits
-        self.respect_rate_limit(source_key, source_config.rate_limit)
-
-        # If in test mode, print params and return None
-        if test:
-            print("\nTest mode - Parameters:")
-            print(f"  Source key: {source_key}")
-            print(f"  Symbol: {symbol}")
-            print(f"  Company: {company}")
-            print(f"  Exchange: {exchange}")
-            print(f"  Source config: {source_config}")
-            print(f"  Mapped params: {params}")
-            return None
-
-        # Get page and navigate
-        page: AsyncPage = self.get_or_create_page()
-
-        try:
-            # Format URL with parameters
-            url = source_config.url_template.format(
-                **{k: v for k, v in params.items() if v})
-
-            # Navigate to page
-            page.goto(url, timeout=30000)
-
-            # Wait based on strategy
-            if source_config.wait_strategy == "networkidle":
-                page.wait_for_load_state("networkidle", timeout=30000)
-            elif source_config.wait_strategy == "load":
-                page.wait_for_load_state("load", timeout=30000)
-
-            # Perform human-like actions
-            perform_human_like_actions(page)
-
-            # Get page content
-            content = page.content()
-
-            # Save to temp file for normalization
-            temp_file = Path(
-                f"data/stock_page_{source_key}_{int(time.time())}.html")
-            temp_file.write_text(content, encoding='utf-8')
-
-            # Normalize content
-            normalized_text = normalize_html(temp_file)
-
-            # Cleanup temp file
-            temp_file.unlink()
-
-            return {
-                "source": source_config.name,
-                "source_key": source_key,
-                "url": url,
-                "data_type": source_config.data_type,
-                "priority": source_config.priority,
-                "content": normalized_text,
-                "timestamp": time.time(),
-                "success": True
-            }
-
-        except Exception as e:
-            return {
-                "source": source_config.name,
-                "source_key": source_key,
-                "url": url if 'url' in locals() else "unknown",
-                "error": str(e),
-                "success": False,
-                "timestamp": time.time()
-            }
-
-        finally:
-            self.return_page(page)
-
 
 def load_sources_config(config_path: str = SOURCES) -> tuple[Dict[str, SourceConfig], Dict[str, Dict[str, str]]]:
     """Load source configurations from YAML file."""
@@ -538,6 +429,7 @@ async def fetch_source_content(
     symbol: str = None,
     company: str = None,
     exchange: str = None,
+    normalize: bool = False,
     **kwargs
 ) -> dict:
     """
@@ -553,6 +445,8 @@ async def fetch_source_content(
     Returns:
         dict: Dictionary containing the URL, status, message, and normalized content
     """
+
+    MAXLENGTH = 999999
     try:
         ctx = mcp.get_context()
         browser_ctx = ctx.request_context.lifespan_context
@@ -619,22 +513,25 @@ async def fetch_source_content(
 
         # TODO: make this a member function get_normalized_page_content, return normalized_text
         # Save to temp file for normalization
-        temp_file = Path(
-            f"data/stock_page_{source_key}_{int(time.time())}.html")
-        temp_file.parent.mkdir(parents=True, exist_ok=True)
-        temp_file.write_text(content, encoding='utf-8')
+        if normalize:
+            temp_file = Path(
+                f"data/stock_page_{source_key}_{int(time.time())}.html")
+            temp_file.parent.mkdir(parents=True, exist_ok=True)
+            temp_file.write_text(content, encoding='utf-8')
+            # Normalize content
+            content = normalize_html(temp_file)
+            # Cleanup temp file
+            temp_file.unlink()
 
-        # Normalize content
-        normalized_text = normalize_html(temp_file)
-
-        # Cleanup temp file
-        temp_file.unlink()
+        # truncate content to MAXLENGTH
+        if len(content) > MAXLENGTH:
+            content = content[:MAXLENGTH]
 
         return {
             "url": url,
             "status": "success",
             "message": f"Successfully loaded {source_config.name}",
-            "content": normalized_text,
+            "content": content,
             "source": source_key
         }
 
@@ -698,6 +595,87 @@ def fn_get_10k_item_from_symbol(symbol, item="1"):
     except Exception as e:
         logger.info("Error getting 10-K item: %s", e)
     return item_text
+
+
+@mcp.tool()
+async def fetch_url_content(
+    url: Annotated[
+        str,
+        {
+            "description": "The URL to fetch content from",
+            "example": "https://www.google.com"
+        },
+    ],
+) -> str:
+    """Get content from a URL. Use to fetch permissioned content where the password is saved in the Firefox profile."""
+    try:
+        # TODO: make this a member function in extractor class, use this for all fetches
+        # TODO: wrap a function that takes url, wait_strategy, normalize and returns content
+        wait_strategy = "networkidle"
+        normalize = False
+
+        logger.info("URL: %s", url)
+
+        ctx = mcp.get_context()
+        browser_ctx = ctx.request_context.lifespan_context
+        # get extractor
+        extractor = StockDataExtractor(browser_ctx)
+
+        # Get a browser page using the browser context
+        page = await extractor.get_or_create_page()
+
+        # Navigate to the URL with the specified wait strategy
+        response = await page.goto(url, wait_until=wait_strategy)
+        if not response or response.status != 200:
+            return {
+                "url": url,
+                "status": "error",
+                "message": f"Failed to load page (status: {response.status if response else 'unknown'})"
+            }
+
+        # Wait for the page to be fully loaded, possibly redundant
+        await page.wait_for_load_state(wait_strategy)
+
+        # Get page content
+        content = await page.content()
+        if not content:
+            return {
+                "url": url,
+                "status": "error",
+                "message": "Failed to get page content"
+            }
+
+        # TODO: make this a member function get_normalized_page_content, return normalized_text
+        # Save to temp file for normalization
+        if normalize:
+            temp_file = Path(
+                f"data/stock_page_{secrets.token_hex(20)}.html")
+            temp_file.parent.mkdir(parents=True, exist_ok=True)
+            temp_file.write_text(content, encoding='utf-8')
+            # Normalize content
+            content = normalize_html(temp_file)
+            # Cleanup temp file
+            temp_file.unlink()
+
+        return {
+            "url": url,
+            "status": "success",
+            "content": content,
+        }
+    except Exception as e:
+        return {
+            "url": url,
+            "status": "error",
+            "message": str(e)
+        }
+    finally:
+        # Return the page to the pool
+        if page:
+            try:
+                await extractor.return_page(page)
+            except Exception as e:
+                print(
+                    f"Error returning page to pool in finally block: {str(e)}")
 
 
 @mcp.tool()
@@ -872,7 +850,16 @@ class TechnicalAnalysis:
         }
 
 
-async def ta_helper(symbol):
+@mcp.tool()
+async def fetch_technical_analysis(symbol: Annotated[
+        str,
+        {
+            "description": "The stock symbol",
+            "example": "AAPL"
+        }
+    ],
+) -> str:
+    """Get technical analysis for a given symbol."""
     market_data = MarketData()
     tech_analysis = TechnicalAnalysis()
     tadf = await market_data.get_historical_data(symbol)
@@ -899,20 +886,8 @@ async def ta_helper(symbol):
     """
     return analysis
 
-
-@mcp.tool()
-async def fetch_technical_analysis(symbol: Annotated[
-        str,
-        {
-            "description": "The stock symbol",
-            "example": "AAPL"
-        }
-    ],
-) -> str:
-    """Get technical analysis for a given symbol."""
-    return await ta_helper(symbol)
-
-    # these don't show the image inline  in Claude desktop
+    # these don't show the image inline  in Claude desktop :(
+    # you can send image bytes back but you have to expand tool response to see the image
     # @mcp.tool()
     # def return_relative_file_path():
     #     relative_path = os.path.relpath("charts/chart.png")
@@ -1125,91 +1100,6 @@ async def fetch_image_from_url(
         raise ValueError(f"Error fetching image: {str(e)}") from e
 
 
-# stockcharts doesn't return an image, it returns a page with an image, tried to extract the image
-# @mcp.tool()
-# async def show_chart(
-#     url: Annotated[
-#         str,
-#         {
-#             "description": "The URL of the image",
-#             "example": "https://example.com/image.jpg"
-#         }
-#     ],
-# ) -> Image:
-#     """Show an image based on a URL. The URL should point directly to an image."""
-#     try:
-#         logger.info("show_chart: %s", url)
-
-#         # Get browser context from the app state
-#         ctx = mcp.get_context()
-#         browser_ctx = ctx.request_context.lifespan_context
-
-#         if not browser_ctx:
-#             raise ValueError("Browser context not available")
-
-#         # Get a page from the pool
-#         extractor = StockDataExtractor(browser_ctx)
-#         page = await extractor.get_or_create_page()
-
-#         try:
-#             # Navigate to the URL
-#             response = await page.goto(url, wait_until="networkidle", timeout=60000)
-
-#             if not response or not response.ok:
-#                 raise ValueError(f"Failed to load URL: {url}")
-
-#             # Check if this is an HTML page with an image
-#             content_type = response.headers.get('content-type', '').lower()
-#             if 'html' in content_type:
-#                 # Get the first image element
-#                 img_data = await page.evaluate('''() => {
-#                     const img = document.querySelector('img');
-#                     if (!img) return null;
-#                     return {
-#                         src: img.src,
-#                         width: img.naturalWidth,
-#                         height: img.naturalHeight
-#                     };
-#                 }''')
-
-#                 if not img_data:
-#                     raise ValueError("No image found on the page")
-
-#                 # Get the image data directly
-#                 img_response = await page.evaluate_handle('''(img) => {
-#                     return new Promise((resolve) => {
-#                         const canvas = document.createElement('canvas');
-#                         const ctx = canvas.getContext('2d');
-#                         canvas.width = img.naturalWidth;
-#                         canvas.height = img.naturalHeight;
-#                         ctx.drawImage(img, 0, 0);
-#                         canvas.toBlob(blob => {
-#                             const reader = new FileReader();
-#                             reader.onload = () => resolve(reader.result);
-#                             reader.readAsDataURL(blob);
-#                         }, 'image/png');
-#                     });
-#                 }''', await page.evaluateHandle('document.querySelector("img")'))
-
-#                 # The result is a base64 data URL, extract the data part
-#                 data_url = await img_response.jsonValue()
-#                 return Image(data=data_url.split(',', 1)[1])
-#             else:
-#                 # Direct image URL case
-#                 content = await page.content()
-#                 if not content:
-#                     raise ValueError("No content received from URL")
-#                 return Image(data=base64.b64encode(content).decode("utf-8"))
-
-#         finally:
-#             # Return the page to the pool
-#             await extractor.return_page(page)
-
-#     except Exception as e:
-#         logger.error("Error loading image: %s", str(e))
-#         raise ValueError(f"Error loading image: {str(e)}") from e
-
-
 @mcp.tool()
 async def get_bloomberg_news(
     company: Annotated[
@@ -1328,26 +1218,26 @@ async def get_google_finance_news(
     """Search Google Finance for a given stock symbol."""
     return await fetch_source_content("google_finance", symbol=symbol)
 
-
-@mcp.tool()
-async def get_morningstar_research(
-    symbol: Annotated[
-        str,
-        {
-            "description": "The stock symbol",
-            "example": "AAPL"
-        }
-    ],
-    exchange: Annotated[
-        str,
-        {
-            "description": "The exchange where the stock is traded",
-            "example": "NASDAQ"
-        }
-    ]
-) -> dict:
-    """Search Morningstar for a given stock symbol and exchange."""
-    return await fetch_source_content("morningstar", symbol=symbol, exchange=exchange)
+# # getting timeouts on morningstar, either needs debugging or they are blocking Playwright somehow
+# @mcp.tool()
+# async def get_morningstar_research(
+#     symbol: Annotated[
+#         str,
+#         {
+#             "description": "The stock symbol",
+#             "example": "AAPL"
+#         }
+#     ],
+#     exchange: Annotated[
+#         str,
+#         {
+#             "description": "The exchange where the stock is traded",
+#             "example": "NASDAQ"
+#         }
+#     ]
+# ) -> dict:
+#     """Search Morningstar for a given stock symbol and exchange."""
+#     return await fetch_source_content("morningstar", symbol=symbol, exchange=exchange)
 
 
 @mcp.tool()
