@@ -16,7 +16,7 @@ While it's not a fully autonomous agent and at an early POC level, it shows clea
 
 ## Features
 
-* **FastMCP server** – exposes all functionality as typed MCP *tools* and *resources*.
+* **FastMCP server** – exposes a few MCP *tools* to get market data, news, charts, SEC filings, fundamental, technical data, research from public web sites, subscription services, and REST APIs.
 * **Market data** – real-time and historical OHLCV data via `yfinance` & `OpenBB`.
 * **Fundamental data** – automatic downloading of SEC filings (`sec_downloader`) and rich XBRL/HTML parsing through `sec_parser`.
 * **News & Social sentiment** – headlines with `newsapi-python` plus Reddit scraping utilities.
@@ -64,7 +64,7 @@ $ LOGLEVEL=DEBUG mcp dev server.py
 ```
 MCP/
 ├── claude_desktop_config.json # Configuration for Claude Desktop
-├── dotenv.txt             # Environment variables
+├── dotenv.txt             # Secrets / Environment variables
 ├── README.md              # This file
 ├── server.py              # FastMCP server, launched by mcp dev or Claude desktop or other MCP client
 ├── requirements.txt       # Python dependencies
