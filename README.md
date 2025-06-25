@@ -53,8 +53,9 @@ $ LOGLEVEL=DEBUG mcp dev server.py
 # 7. Use the server in your MCP client of choice. For Claude Desktop, install the provided claude_desktop_config.json file for your platform (macOS, Windows, Linux).
 ```
 
-[MCP / Claude Desktop Quickstart](https://modelcontextprotocol.io/quickstart/user)
-[Awesome MCP Servers](https://awesome-mcp-servers.com/)
+- [MCP / Claude Desktop Quickstart](https://modelcontextprotocol.io/quickstart/user)
+
+- [Awesome MCP Servers](https://awesome-mcp-servers.com/)
 
 ---
 
