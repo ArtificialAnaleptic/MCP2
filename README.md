@@ -54,8 +54,8 @@ $ LOGLEVEL=DEBUG mcp dev server.py
 ```
 
 [MCP / Claude Desktop Quickstart](https://modelcontextprotocol.io/quickstart/user)
-
 [Awesome MCP Servers](https://awesome-mcp-servers.com/)
+
 ---
 
 ## Project Structure
