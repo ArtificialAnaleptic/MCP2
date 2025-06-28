@@ -51,6 +51,13 @@ $ LOGLEVEL=DEBUG mcp dev server.py
 # click to the link in the terminal to open the test page, connect, view tools, and then test them individually
 
 # 7. Use the server in your MCP client of choice. For Claude Desktop, install the provided claude_desktop_config.json file for your platform (macOS, Windows).
+
+# 8. For additional market data MCP servers install these repos
+git clone https://github.com/Alex2Yang97/yahoo-finance-mcp.git
+git clone https://github.com/cdtait/fmp-mcp-server
+git clone https://github.com/calvernaz/alphavantage.git
+(see alphavantage.patches for edits to alphavantage/src/alphavantage_mcp_server/server.py)
+
 ```
 
 - [MCP / Claude Desktop Quickstart](https://modelcontextprotocol.io/quickstart/user)
