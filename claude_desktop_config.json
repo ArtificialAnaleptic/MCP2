@@ -15,7 +15,9 @@
         },
         "stock-symbol-server": {
             "command": "/opt/anaconda3/envs/mcp/bin/python",
-            "args": ["/Users/drucev/projects/windsurf/MCP/server.py"],
+            "args": [
+                "/Users/drucev/projects/windsurf/MCP/server.py"
+            ],
             "cwd": "/Users/drucev/projects/windsurf/MCP",
             "env": {
                 "CONDA_DEFAULT_ENV": "mcp",
@@ -25,15 +27,47 @@
         "perplexity-ask": {
             "command": "npx",
             "args": [
-                "-y", 
+                "-y",
                 "server-perplexity-ask"
             ],
             "env": {
-                "PERPLEXITY_API_KEY": ""
+                "PERPLEXITY_API_KEY": "xxx"
             }
-        }        
-    }
+        },
+        "alphavantage": {
+            "command": "/opt/anaconda3/envs/mcp/bin/python",
+            "args": [
+                "/Users/drucev/projects/windsurf/MCP/alphavantage/src/alphavantage_mcp_server/server.py"
+            ],
+            "cwd": "/Users/drucev/projects/windsurf/MCP/alphavantage",
+            "env": {
+                "CONDA_DEFAULT_ENV": "mcp",
+                "PATH": "/opt/anaconda3/envs/mcp/bin:/usr/local/bin:/usr/bin:/bin",
+                "PYTHONPATH": "/Users/drucev/projects/windsurf/MCP/alphavantage/src",
+                "ALPHA_VANTAGE_API_KEY": "xxx"
+
+            }
+        },
+        "yfinance": {
+            "command": "/Users/drucev/.local/bin/uv",
+            "args": [
+                "--directory",
+                "/Users/drucev/projects/windsurf/MCP/xxx",
+                "run",
+                "server.py"
+            ]
+        },
+        "fmp": {
+            "command": "/opt/anaconda3/envs/mcp/bin/python",
+            "args": [
+                "/Users/drucev/projects/windsurf/MCP/fmp-mcp-server/src/server.py"
+            ],
+            "cwd": "/Users/drucev/projects/windsurf/MCP/fmp-mcp-server",
+            "env": {
+                "CONDA_DEFAULT_ENV": "mcp",
+                "PATH": "/opt/anaconda3/envs/mcp/bin:/usr/local/bin:/usr/bin:/bin",
+                "PYTHONPATH": "/Users/drucev/projects/windsurf/MCP/fmp-mcp-server"
+            }
+        }
+    }        
 }
-
-
-

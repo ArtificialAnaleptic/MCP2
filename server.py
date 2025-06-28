@@ -429,7 +429,7 @@ async def fetch_source_content(
     symbol: str = None,
     company: str = None,
     exchange: str = None,
-    normalize: bool = False,
+    normalize: bool = True,
     **kwargs
 ) -> dict:
     """
@@ -612,7 +612,8 @@ async def fetch_url_content(
         # TODO: make this a member function in extractor class, use this for all fetches
         # TODO: wrap a function that takes url, wait_strategy, normalize and returns content
         wait_strategy = "networkidle"
-        normalize = False
+        normalize = True
+        MAXLENGTH = 999999
 
         logger.info("URL: %s", url)
 
@@ -660,7 +661,7 @@ async def fetch_url_content(
         return {
             "url": url,
             "status": "success",
-            "content": content,
+            "content": content[:MAXLENGTH],
         }
     except Exception as e:
         return {
@@ -1098,6 +1099,8 @@ async def fetch_image_from_url(
             f"HTTP error {e.response.status_code} while fetching image") from e
     except Exception as e:
         raise ValueError(f"Error fetching image: {str(e)}") from e
+
+# TODO: news landing page tools should use a pattern and just return the urls of the news stories
 
 
 @mcp.tool()
