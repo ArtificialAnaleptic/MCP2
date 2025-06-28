@@ -44,7 +44,7 @@
                 "CONDA_DEFAULT_ENV": "mcp",
                 "PATH": "/opt/anaconda3/envs/mcp/bin:/usr/local/bin:/usr/bin:/bin",
                 "PYTHONPATH": "/Users/drucev/projects/windsurf/MCP/alphavantage/src",
-                "ALPHA_VANTAGE_API_KEY": "xxx"
+                "ALPHA_VANTAGE_API_KEY": ""
 
             }
         },
@@ -52,7 +52,7 @@
             "command": "/Users/drucev/.local/bin/uv",
             "args": [
                 "--directory",
-                "/Users/drucev/projects/windsurf/MCP/xxx",
+                "/Users/drucev/projects/windsurf/MCP/yahoo-finance-mcp",
                 "run",
                 "server.py"
             ]
@@ -66,7 +66,8 @@
             "env": {
                 "CONDA_DEFAULT_ENV": "mcp",
                 "PATH": "/opt/anaconda3/envs/mcp/bin:/usr/local/bin:/usr/bin:/bin",
-                "PYTHONPATH": "/Users/drucev/projects/windsurf/MCP/fmp-mcp-server"
+                "PYTHONPATH": "/Users/drucev/projects/windsurf/MCP/fmp-mcp-server",
+                "FMP_API_KEY=your_api_key_here"
             }
         }
     }        
