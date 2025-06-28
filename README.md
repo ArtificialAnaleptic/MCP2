@@ -56,7 +56,7 @@ $ LOGLEVEL=DEBUG mcp dev server.py
 git clone https://github.com/Alex2Yang97/yahoo-finance-mcp.git
 git clone https://github.com/cdtait/fmp-mcp-server
 git clone https://github.com/calvernaz/alphavantage.git
-(see alphavantage.patches for edits to alphavantage/src/alphavantage_mcp_server/server.py)
+# see alphavantage.patches for edits to alphavantage/src/alphavantage_mcp_server/server.py
 
 ```
 
