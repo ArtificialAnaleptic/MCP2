@@ -1,0 +1,89 @@
+diff --git a/src/alphavantage_mcp_server/server.py b/src/alphavantage_mcp_server/server.py
+index e3da9a5..b10321d 100644
+--- a/src/alphavantage_mcp_server/server.py
++++ b/src/alphavantage_mcp_server/server.py
+@@ -5207,3 +5207,84 @@ async def main(server_type='stdio', port=8080):
+     else:
+         print("Starting stdio server")
+         await run_stdio_server()
++
++
++@server.call_tool()
++async def handle_call_tool(
++    name: str, arguments: dict | None = None
++) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
++    """
++    Handle tool execution requests.
++    Each tool implementation should:
++    1. Validate the required arguments
++    2. Call the appropriate API function
++    3. Return the formatted result
++    """
++    if arguments is None:
++        arguments = {}
++
++    try:
++        if name == AlphavantageTools.STOCK_QUOTE.value:
++            result = await fetch_quote(**arguments)
++        elif name == AlphavantageTools.TIME_SERIES_INTRADAY.value:
++            result = await fetch_intraday(**arguments)
++        elif name == AlphavantageTools.TIME_SERIES_DAILY.value:
++            result = await fetch_time_series_daily(**arguments)
++        elif name == AlphavantageTools.TIME_SERIES_DAILY_ADJUSTED.value:
++            result = await fetch_time_series_daily_adjusted(**arguments)
++        elif name == AlphavantageTools.TIME_SERIES_WEEKLY.value:
++            result = await fetch_time_series_weekly(**arguments)
++        elif name == AlphavantageTools.TIME_SERIES_WEEKLY_ADJUSTED.value:
++            result = await fetch_time_series_weekly_adjusted(**arguments)
++        elif name == AlphavantageTools.TIME_SERIES_MONTHLY.value:
++            result = await fetch_time_series_monthly(**arguments)
++        elif name == AlphavantageTools.TIME_SERIES_MONTHLY_ADJUSTED.value:
++            result = await fetch_time_series_monthly_adjusted(**arguments)
++        elif name == AlphavantageTools.REALTIME_BULK_QUOTES.value:
++            result = await fetch_realtime_bulk_quotes(**arguments)
++        elif name == AlphavantageTools.SYMBOL_SEARCH.value:
++            result = await search_endpoint(**arguments)
++        elif name == AlphavantageTools.MARKET_STATUS.value:
++            result = await fetch_market_status(**arguments)
++        elif name == AlphavantageTools.COMPANY_OVERVIEW.value:
++            result = await fetch_company_overview(**arguments)
++        elif name == AlphavantageTools.COMPANY_EARNINGS.value:
++            result = await fetch_earnings(**arguments)
++        elif name == AlphavantageTools.EARNINGS_CALL_TRANSCRIPT.value:
++            result = await fetch_earnings_call_transcript(**arguments)
++        elif name == AlphavantageTools.TOP_GAINERS_LOSERS.value:
++            result = await fetch_top_gainer_losers(**arguments)
++        else:
++            return [types.TextContent(type="text", text=f"Unknown tool: {name}")]
++
++        return [types.TextContent(type="text", text=str(result))]
++    
++    except Exception as e:
++        return [types.TextContent(type="text", text=f"Error executing {name}: {str(e)}")]
++
++
++def main():
++    """Run the server using stdio transport."""
++    import asyncio
++    from mcp.server.stdio import stdio_server
++    
++    async def run_server():
++        async with stdio_server() as (read_stream, write_stream):
++            await server.run(
++                read_stream,
++                write_stream,
++                InitializationOptions(
++                    server_name="alphavantage",
++                    server_version="0.1.0",
++                    capabilities=server.get_capabilities(
++                        notification_options=NotificationOptions(),
++                        experimental_capabilities={},
++                    ),
++                ),
++            )
++    
++    asyncio.run(run_server())
++    
++
++if __name__ == "__main__":
++    main()
