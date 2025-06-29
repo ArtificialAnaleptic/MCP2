@@ -65,13 +65,6 @@ from scrape import get_browser, normalize_html
 from technical_analysis import MarketData, TechnicalAnalysis
 
 # import importlib
-
-# import openbb
-# from openbb_core.app.model.obbject import OBBject
-
-# import base64
-
-
 # from mcp.types import Resource
 # from mcp.server import Server
 
@@ -79,7 +72,6 @@ from technical_analysis import MarketData, TechnicalAnalysis
 
 # Load environment variables
 dotenv.load_dotenv()
-
 
 SOURCES = "sources.yaml"
 
@@ -122,30 +114,27 @@ class SourceConfig:
     include: Optional[List[str]] = None
 
 
-@dataclass
-class BrowserContext:
-    """Browser context for web scraping."""
-    browser: AsyncBrowserContext
-    page_pool: List[AsyncPage] = field(default_factory=list)
-    last_request_time: Dict[str, float] = field(default_factory=dict)
-    sources: Dict[str, SourceConfig] = field(default_factory=dict)
-    exchanges: Dict[str, Dict[str, str]] = field(default_factory=dict)
-
-
 class StockDataExtractor:
     """Stock data extractor for web scraping."""
 
-    def __init__(self, context: BrowserContext):
-        self.context = context
+    def __init__(self, browser_context: AsyncBrowserContext,
+                 sources: Dict[str, SourceConfig],
+                 exchanges: Dict[str, Dict[str, str]]
+                 ):
+        self.browser_context = browser_context
+        self.sources = sources
+        self.exchanges = exchanges
+        self.page_pool: List[AsyncPage] = []
+        self.last_request_time: Dict[str, float] = {}
 
     async def get_or_create_page(self) -> AsyncPage:
         """Get a page from the pool or create a new one."""
-        if self.context.page_pool:
-            return self.context.page_pool.pop()
-        if not hasattr(self.context, 'browser') or self.context.browser is None:
+        if self.page_pool:
+            return self.page_pool.pop()
+        if not hasattr(self, 'browser_context') or self.browser_context is None:
             raise RuntimeError(
                 "Browser is not initialized. Call browser_lifespan() first.")
-        return await self.context.browser.new_page()
+        return await self.browser_context.new_page()
 
     async def return_page(self, page: AsyncPage):
         """Return a page to the pool for reuse."""
@@ -154,7 +143,7 @@ class StockDataExtractor:
             await page.goto("about:blank")
             await page.evaluate(
                 "() => { localStorage.clear(); sessionStorage.clear(); }")
-            self.context.page_pool.append(page)
+            self.page_pool.append(page)
         except Exception as e:
             print(f"Error returning page to pool: {str(e)}")
             # If cleaning fails, close the page
@@ -163,47 +152,40 @@ class StockDataExtractor:
     def respect_rate_limit(self, source_key: str, rate_limit: float):
         """Ensure we respect rate limits for each source."""
         now = time.time()
-        last_request = self.context.last_request_time.get(source_key, 0)
+        last_request = self.last_request_time.get(source_key, 0)
         time_since_last = now - last_request
 
         if time_since_last < rate_limit:
             sleep_time = rate_limit - time_since_last
             time.sleep(sleep_time)
 
-        self.context.last_request_time[source_key] = time.time()
+        self.last_request_time[source_key] = time.time()
 
     def map_exchange(self, source_key: str, exchange: str) -> str:
         """Map exchange codes for specific platforms."""
-        mappings = self.context.exchanges.get(source_key, {})
+        mappings = self.exchanges.get(source_key, {})
         return mappings.get(exchange, exchange)
 
 
-def load_sources_config(config_path: str = SOURCES) -> tuple[Dict[str, SourceConfig], Dict[str, Dict[str, str]]]:
-    """Load source configurations from YAML file."""
-    with open(config_path, 'r', encoding='utf-8') as f:
-        config = yaml.safe_load(f)
-
-    sources = {}
-    for key, source_data in config['sources'].items():
-        sources[key] = SourceConfig(**source_data)
-
-    exchange_mappings = config.get('exchange_mappings', {})
-
-    return sources, exchange_mappings
+@dataclass
+class AppContext:
+    """App context for web scraping."""
+    stock_data_extractor: StockDataExtractor = field(
+        default_factory=StockDataExtractor)
 
 
 @asynccontextmanager
-async def browser_lifespan(_server: FastMCP) -> AsyncIterator[BrowserContext]:
-    """Manage browser lifecycle with configuration loading.
+async def app_lifespan(_server: FastMCP) -> AsyncIterator[AppContext]:
+    """Manage app lifecycle with persistent data: browser, sources, exchanges.
 
     Args:
         _server: The MCP server instance (unused in this implementation)
 
     Yields:
-        BrowserContext: The initialized browser context
+        AppContext: The initialized app context
     """
     try:
-        # Load configuration for BrowserContext
+        # Load configuration for AppContext
         logger.info("Loading configuration...")
         loaded_sources, loaded_exchanges = load_sources_config()
         logger.info("Successfully loaded configuration")
@@ -221,11 +203,11 @@ async def browser_lifespan(_server: FastMCP) -> AsyncIterator[BrowserContext]:
                 browser = await get_browser(playwright)
                 logger.info("Browser launched")
 
-                context = BrowserContext(
-                    browser=browser,
-                    sources=loaded_sources,
-                    exchanges=loaded_exchanges
-                )
+                context = AppContext(
+                    stock_data_extractor=StockDataExtractor(browser,
+                                                            sources=loaded_sources,
+                                                            exchanges=loaded_exchanges
+                                                            ))
                 logger.info("Browser context created")
                 # potentially add pages to the pool here
                 yield context
@@ -242,6 +224,20 @@ async def browser_lifespan(_server: FastMCP) -> AsyncIterator[BrowserContext]:
     except Exception as e:
         logger.error("Error in browser_lifespan: %s", str(e), exc_info=True)
         raise
+
+
+def load_sources_config(config_path: str = SOURCES) -> tuple[Dict[str, SourceConfig], Dict[str, Dict[str, str]]]:
+    """Load source configurations from YAML file."""
+    with open(config_path, 'r', encoding='utf-8') as f:
+        config = yaml.safe_load(f)
+
+    sources = {}
+    for key, source_data in config['sources'].items():
+        sources[key] = SourceConfig(**source_data)
+
+    exchange_mappings = config.get('exchange_mappings', {})
+
+    return sources, exchange_mappings
 
 
 async def fetch_source_content(
@@ -269,16 +265,18 @@ async def fetch_source_content(
     maxlength = 999999
 
     try:
-        ctx = mcp.get_context()
-        browser_ctx = ctx.request_context.lifespan_context
-        # get extractor
-        extractor = StockDataExtractor(browser_ctx)
+        logger.info("Fetching content from %s", source_key)
+        context = mcp.get_context()
 
-        if source_key not in browser_ctx.sources:
+        app_context = context.request_context.lifespan_context
+        # get extractor
+        extractor = app_context.stock_data_extractor
+
+        if source_key not in extractor.sources:
             raise ValueError(
                 f"Source '{source_key}' not found in configuration")
 
-        source_config = browser_ctx.sources[source_key]
+        source_config = extractor.sources[source_key]
         page = None
 
         # Prepare template variables
@@ -293,7 +291,7 @@ async def fetch_source_content(
         # TODO: make this a member function map_exchange
         logger.info("Applying exchange mappings for %s", source_key)
         if hasattr(source_config, 'exchange_mappings') and exchange:
-            mapping = browser_ctx.exchanges.get(source_key)
+            mapping = app_context.exchanges.get(source_key)
             logger.info("Exchange mappings found : %s", str(mapping))
             template_vars['exchange'] = mapping.get(exchange, exchange)
 
@@ -372,14 +370,6 @@ async def fetch_source_content(
                 print(
                     f"Error returning page to pool in finally block: {str(e)}")
 
-# Initialize MCP server
-mcp = FastMCP("stock-symbol-server", lifespan=browser_lifespan)
-
-# image tool opens stockcharts page and saves image locally and returns the image url
-
-
-# chart display tool shows an image based on a URL
-
 
 def fn_get_10k_item_from_symbol(symbol, item="1"):
     """
@@ -418,6 +408,11 @@ def fn_get_10k_item_from_symbol(symbol, item="1"):
     return item_text
 
 
+# Initialize MCP server
+# needed for toolw definitions below
+mcp = FastMCP("stock-symbol-server", lifespan=app_lifespan)
+
+
 @mcp.tool()
 async def fetch_url_content(
     url: Annotated[
@@ -441,7 +436,7 @@ async def fetch_url_content(
         ctx = mcp.get_context()
         browser_ctx = ctx.request_context.lifespan_context
         # get extractor
-        extractor = StockDataExtractor(browser_ctx)
+        extractor = browser_ctx.stock_data_extractor
 
         # Get a browser page using the browser context
         page = await extractor.get_or_create_page()
@@ -842,6 +837,7 @@ async def get_yahoo_news(
     ]
 ) -> dict:
     """Search Yahoo Finance headlines for a given stock symbol."""
+    logger.info("Getting Yahoo Finance news for %s", symbol)
     return await fetch_source_content("yahoo_news", symbol=symbol)
 
 
