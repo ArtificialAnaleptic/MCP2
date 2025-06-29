@@ -1,13 +1,17 @@
 # MCP Securities Analysis
 
-A Python-based flow for securities analysis using the **Model Context Protocol (MCP)**.  The repository bundles data-collection, parsing, analytics and visualisation tools behind a single FastMCP server so that they can be consumed locally or remotely by any MCP-aware client (e.g. Claude Desktop, LangChain, OpenAI-Function calling, etc.).
+A Python-based flow for securities analysis using the **Model Context Protocol (MCP)**.  The repository bundles market data, parsing, analytics and visualisation tools behind a FastMCP server so that they can be consumed locally or remotely by any MCP-aware client (e.g. Claude Desktop, LangChain, OpenAI-Function calling, etc.).
 
 [Example deep research report for Tesla](https://claude.ai/public/artifacts/2f1df8b6-ffbc-40ca-a2d9-6d068bdb01a9).
 
 This was generated semi-autonomously by the following steps:
+
 - connect MCP tools to Claude Desktop, including web search, Perplexity, Wikipedia, in addition to the market data tools in server.py for fundamental, technical analysis, and news search.
+
 - prompt Claude Desktop to query Perplexity, Wikipedia, and the 10-K to write a profile of Tesla
+
 - prompt Claude Desktop to query each tool for info on Tesla
+
 - finally, enable deep research and prompt Claude Desktop to write a deep report in 8 sections with details on what each section should cover, using the information retrieved from the tools.
 
 While it's not a fully autonomous agent and at an early POC level, it shows clear path toward a fully autonomous agent. Create an MCP client that goes through the steps above and generates a deep report on Tesla in a structured format with graphs and tables. And then create an even more advanced [multi-agent workflow](https://www.anthropic.com/engineering/built-multi-agent-research-system) with a set of parallel agents for each section, and a critic-optimizer workflow, and a final report generator.
@@ -16,14 +20,22 @@ While it's not a fully autonomous agent and at an early POC level, it shows clea
 
 ## Features
 
-* **FastMCP server** – exposes a few MCP *tools* to get market data, news, charts, SEC filings, fundamental, technical data, research from public web sites, subscription services, and REST APIs.
-* **Market data** – real-time and historical OHLCV data via `yfinance` & `OpenBB`.
-* **Fundamental data** – automatic downloading of SEC filings (`sec_downloader`) and rich XBRL/HTML parsing through `sec_parser`.
-* **News & Social sentiment** – headlines with `newsapi-python` plus Reddit scraping utilities.
-* **Technical analysis** – hundreds of indicators with `pandas_ta` & `TA-Lib`.
-* **Interactive plots** – high-quality Plotly charts exported server-side (static PNG or interactive HTML).
-* **Async-first design** – built on `asyncio`, `aiohttp`, `httpx` & Playwright for maximum throughput.
-- this section AI-generated so beware of hype. New project, would like to share and get comments, not extensively tested. Use it as a starting point, at your own risk.
+- **FastMCP server** – exposes a few MCP *tools* to get market data, news, charts, SEC filings, fundamental, technical data, research from public web sites, subscription services, and REST APIs.
+
+- **Market data** – real-time and historical OHLCV data via `yfinance` & `OpenBB`.
+
+- **Fundamental data** – automatic downloading of SEC filings (`sec_downloader`) and rich XBRL/HTML parsing through `sec_parser`.
+
+- **News & Social sentiment** – headlines with `newsapi-python` plus Reddit scraping utilities.
+
+- **Technical analysis** – hundreds of indicators with `pandas_ta` & `TA-Lib`.
+
+- **Interactive plots** – high-quality Plotly charts exported server-side (static PNG or interactive HTML).
+
+- **Async-first design** – built on `asyncio`, `aiohttp`, `httpx` & Playwright for maximum throughput.
+
+This section AI-generated so beware of hype. New project, would like to share and get comments, not extensively tested. Use it as a starting point, at your own risk.
+
 ---
 
 ## Quick Start
@@ -68,7 +80,7 @@ git clone https://github.com/calvernaz/alphavantage.git
 
 ## Project Structure
 
-```
+```bash
 MCP/
 ├── claude_desktop_config.json # Configuration for Claude Desktop
 ├── dotenv.txt             # Secrets / Environment variables

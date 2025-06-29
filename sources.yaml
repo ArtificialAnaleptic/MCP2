@@ -1,13 +1,4 @@
 sources:
-  stockcharts:
-    name: "StockCharts"
-    description: "StockCharts is a website that provides technical analysis and charting for stocks, bonds, and other financial instruments."
-    url_template: "https://stockcharts.com/h-sc/ui?s={symbol}&id=p33407302522&def=Y&listNum=1#"
-    required_params: ["symbol"]
-    wait_strategy: "networkidle"  # Wait for charts to load
-    rate_limit: 2.0  # seconds between requests
-    data_type: "technical"
-
   bloomberg:
     name: "Bloomberg"
     description: "Search Bloomberg headlines for a given company name."
@@ -16,6 +7,8 @@ sources:
     wait_strategy: "load"
     rate_limit: 3.0
     data_type: "news"
+    include:
+      - ^https://www.bloomberg.com/news/articles/
 
   reuters:
     name: "Reuters"
@@ -25,7 +18,9 @@ sources:
     wait_strategy: "load"
     rate_limit: 2.5
     data_type: "news"
-
+    include:
+      - ^https://www.reuters.com/
+    
   yahoo_news:
     name: "Yahoo Finance News"
     description: "Search Yahoo Finance headlines for a given stock symbol."
@@ -34,15 +29,8 @@ sources:
     wait_strategy: "load"
     rate_limit: 1.5
     data_type: "news"
-
-  yahoo_stats:
-    name: "Yahoo Finance Statistics"
-    description: "Search Yahoo Finance key statistics for a given stock symbol."
-    url_template: "https://finance.yahoo.com/quote/{symbol}/key-statistics"
-    required_params: ["symbol"]
-    wait_strategy: "load"
-    rate_limit: 1.5
-    data_type: "fundamental"
+    include:
+      - ^https://finance.yahoo.com/
 
   ft:
     name: "Financial Times"
@@ -52,15 +40,17 @@ sources:
     wait_strategy: "load"
     rate_limit: 4.0  # FT is strict about rate limiting
     data_type: "news"
+    include:
+      - ^https://www.ft.com/content/
 
-  barrons:
-    name: "Barrons"
-    description: "Search Barrons headlines for a given stock symbol and company name."
-    url_template: "https://www.barrons.com/market-data/stocks/{symbol}?mod=searchresults_companyquotes&mod=searchbar&search_keywords={company}&search_statement_type=suggested"
-    required_params: ["symbol", "company"]
-    wait_strategy: "networkidle"
-    rate_limit: 3.0
-    data_type: "analysis"
+  # barrons:
+  #   name: "Barrons"
+  #   description: "Search Barrons headlines for a given stock symbol and company name."
+  #   url_template: "https://www.barrons.com/market-data/stocks/{symbol}?mod=searchresults_companyquotes&mod=searchbar&search_keywords={company}&search_statement_type=suggested"
+  #   required_params: ["symbol", "company"]
+  #   wait_strategy: "networkidle"
+  #   rate_limit: 3.0
+  #   data_type: "analysis"
 
   business_insider:
     name: "Business Insider"
@@ -70,6 +60,17 @@ sources:
     wait_strategy: "load"
     rate_limit: 2.0
     data_type: "news"
+    include:
+      - ^https://www.businessinsider.com/
+    
+  yahoo_stats:
+    name: "Yahoo Finance Statistics"
+    description: "Search Yahoo Finance key statistics for a given stock symbol."
+    url_template: "https://finance.yahoo.com/quote/{symbol}/key-statistics"
+    required_params: ["symbol"]
+    wait_strategy: "load"
+    rate_limit: 1.5
+    data_type: "fundamental"
 
   google_finance:
     name: "Google Finance"
@@ -80,6 +81,23 @@ sources:
     wait_strategy: "networkidle"
     rate_limit: 1.0
     data_type: "fundamental"
+    exclude:
+      - ^https://www.ft.com/content/
+      - www.google.com
+      - support.google.com
+      - myaccount.google.com
+      - accounts.google.com
+      - goto2.corp.google.com
+      - myactivity.google.com    
+    
+  stockcharts:
+    name: "StockCharts"
+    description: "StockCharts is a website that provides technical analysis and charting for stocks, bonds, and other financial instruments."
+    url_template: "https://stockcharts.com/h-sc/ui?s={symbol}&id=p33407302522&def=Y&listNum=1#"
+    required_params: ["symbol"]
+    wait_strategy: "networkidle"  # Wait for charts to load
+    rate_limit: 2.0  # seconds between requests
+    data_type: "technical"
 
   finviz:
     name: "FinViz"
@@ -98,16 +116,26 @@ sources:
     wait_strategy: "load"
     rate_limit: 1.0
     data_type: "sentiment"
+    exclude:
+      - ^https://chat.reddit.com/
+      - ^https://i.redd.it/
+      - ^https://redditblog.com/
+      - ^https://www.redditinc.com/
+      - ^https://www.reddithelp.com/
+      - ^https://itunes.apple.com/
+      - ^https://play.google.com/
 
   morningstar:
     name: "Morningstar"
     description: "Search Morningstar for a given stock symbol and exchange."
-    url_template: "https://www.morningstar.com/stocks/{exchange}/{symbol}/quote"
+    url_template: "https://www.morningstar.com/stocks/{exchange}/{symbol}/news"
     required_params: ["symbol", "exchange"]
     exchange_mappings: "morningstar"
     wait_strategy: "networkidle"
     rate_limit: 3.0
     data_type: "fundamental"
+    include:
+      - ^https://www.morningstar.com/news"
 
   whalewisdom:
     name: "WhaleWisdom"
