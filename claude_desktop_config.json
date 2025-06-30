@@ -31,7 +31,16 @@
                 "server-perplexity-ask"
             ],
             "env": {
-                "PERPLEXITY_API_KEY": "xxx"
+                "PERPLEXITY_API_KEY": "your api key"
+            }
+        },
+        "brave-search": {
+            "command": "npx",
+            "args": [
+                "@modelcontextprotocol/server-brave-search"
+            ],
+            "env": {
+                "BRAVE_API_KEY": "your api key"
             }
         },
         "alphavantage": {
@@ -44,8 +53,7 @@
                 "CONDA_DEFAULT_ENV": "mcp",
                 "PATH": "/opt/anaconda3/envs/mcp/bin:/usr/local/bin:/usr/bin:/bin",
                 "PYTHONPATH": "/Users/drucev/projects/windsurf/MCP/alphavantage/src",
-                "ALPHA_VANTAGE_API_KEY": ""
-
+                "ALPHA_VANTAGE_API_KEY": "your api key"
             }
         },
         "yfinance": {
@@ -67,8 +75,8 @@
                 "CONDA_DEFAULT_ENV": "mcp",
                 "PATH": "/opt/anaconda3/envs/mcp/bin:/usr/local/bin:/usr/bin:/bin",
                 "PYTHONPATH": "/Users/drucev/projects/windsurf/MCP/fmp-mcp-server",
-                "FMP_API_KEY=your_api_key_here"
+                "FMP_API_KEY": "your api key"
             }
         }
-    }        
+    }
 }

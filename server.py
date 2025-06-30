@@ -167,8 +167,11 @@ class StockDataExtractor:
         mappings = self.exchanges.get(source_key, {})
         return mappings.get(exchange, exchange)
 
-    async def fetch_page(self, url: str, wait_strategy: str = 'networkidle') -> dict:
-        """Fetch a page using the browser context."""
+    async def fetch_url(self, url: str, wait_strategy: str = 'networkidle', extract_mode='text') -> dict:
+        """Fetch a page using the browser context.
+        text = normalized text
+        raw_html = raw html
+        links = markdown of only links and titles"""
         # Get a browser page using the browser context
         try:
             page = await self.get_or_create_page()
@@ -184,7 +187,23 @@ class StockDataExtractor:
 
             # Wait for the page to be fully loaded
             await page.wait_for_load_state(wait_strategy)
+
             content = await page.content()
+
+            if extract_mode == 'text':
+                content = self.normalize_page_content(content)
+            elif extract_mode == 'raw_html':
+                pass
+            # elif extract == 'links':
+            #     content = self.extract_links(content)
+            else:
+                logger.error("invalid extract_mode " + extract_mode)
+                return {
+                    "url": url,
+                    "status": "error",
+                    "message": "invalid extract_mode " + extract_mode,
+                }
+
             return {
                 "url": url,
                 "status": "success",
@@ -275,7 +294,12 @@ class StockDataExtractor:
             url = source_config.url_template.format(**clean_dict)
             logger.info("URL: %s", url)
 
-            extractor_response = await self.fetch_page(url, source_config.wait_strategy)
+            extract_strategy = 'raw'
+            if normalize:
+                extract_strategy = 'text'
+
+            extractor_response = await self.fetch_url(url, source_config.wait_strategy, extract_strategy)
+
             if not extractor_response or extractor_response.get('status') != 'success':
                 message = extractor_response.get(
                     'message') if extractor_response else "Failed to get page content"
@@ -286,26 +310,12 @@ class StockDataExtractor:
                 }
 
             content = extractor_response.get('content')
-            # Save to temp file for normalization
-            if normalize:
-                temp_file = Path(
-                    f"data/stock_page_{source_key}_{int(time.time())}.html")
-                temp_file.parent.mkdir(parents=True, exist_ok=True)
-                temp_file.write_text(content, encoding='utf-8')
-                # Normalize content
-                content = normalize_html(temp_file)
-                # Cleanup temp file
-                temp_file.unlink()
-
-            # truncate content to maxlength
-            if len(content) > maxlength:
-                content = content[:maxlength]
 
             return {
                 "url": url,
                 "status": "success",
                 "message": f"Successfully loaded {source_config.name}",
-                "content": content,
+                "content": content[:maxlength],
                 "source": source_key
             }
 
@@ -434,21 +444,16 @@ async def fetch_url_content(
         },
     ],
 ) -> str:
-    """Get content from a URL. Use to fetch permissioned content where the password is saved in the Firefox profile."""
+    """Get normalized text content from a URL. Use to fetch permissioned content where the password is saved in the Firefox profile."""
     try:
-        # TODO: make this a member function in extractor class, use this for all fetches
-        # TODO: wrap a function that takes url, wait_strategy, normalize and returns content
+        mcp_context = mcp.get_context()
+        app_context = mcp_context.request_context.lifespan_context
+        extractor = app_context.stock_data_extractor
         wait_strategy = "networkidle"
-        normalize = True
-        maxlength = 999999
 
         logger.info("URL: %s", url)
 
-        mcp_context = mcp.get_context()
-        app_context = mcp_context.request_context.lifespan_context
-        # get extractor
-        extractor = app_context.stock_data_extractor
-        extractor_response = await extractor.fetch_page(url, wait_strategy)
+        extractor_response = await extractor.fetch_url(url, wait_strategy)
         if not extractor_response or extractor_response.get('status') != 'success':
             message = extractor_response.get(
                 'message') if extractor_response else "Failed to get page content"
@@ -464,16 +469,64 @@ async def fetch_url_content(
             return {
                 "url": url,
                 "status": "error",
-                "message": "Failed to get page content"
+                "message": "No content"
             }
-
-        if normalize:
-            content = extractor.normalize_page_content(content)
 
         return {
             "url": url,
             "status": "success",
-            "content": content[:maxlength],
+            "content": content,
+        }
+    except Exception as e:
+        return {
+            "url": url,
+            "status": "error",
+            "message": str(e)
+        }
+
+
+@mcp.tool()
+async def fetch_url_html(
+    url: Annotated[
+        str,
+        {
+            "description": "The URL to fetch content from",
+            "example": "https://www.google.com"
+        },
+    ],
+) -> str:
+    """Get raw html from a URL. Use to fetch permissioned content where the password is saved in the Firefox profile."""
+    try:
+        mcp_context = mcp.get_context()
+        app_context = mcp_context.request_context.lifespan_context
+        extractor = app_context.stock_data_extractor
+        wait_strategy = "networkidle"
+
+        logger.info("URL: %s", url)
+
+        extractor_response = await extractor.fetch_url(url, wait_strategy, extract_mode="raw_html")
+        if not extractor_response or extractor_response.get('status') != 'success':
+            message = extractor_response.get(
+                'message') if extractor_response else "Failed to get page content"
+            return {
+                "url": url,
+                "status": "error",
+                "message": message
+            }
+
+        content = extractor_response.get('content')
+
+        if not content:
+            return {
+                "url": url,
+                "status": "error",
+                "message": "No content"
+            }
+
+        return {
+            "url": url,
+            "status": "success",
+            "content": content,
         }
     except Exception as e:
         return {
