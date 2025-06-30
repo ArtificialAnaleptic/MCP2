@@ -1,14 +1,14 @@
-We will be using installed tools to analyze IonQ Inc (symbol: IONQ)
+We will be using installed tools to analyze Palantir (symbol: PLTR)
 
-use the make_stock_chart tool to get a chart of IONQ
+use the make_stock_chart tool to get a chart of PLTR
 
-use the fetch_technical_analysis tool to run a technical analysis summary for IONQ
+use the fetch_technical_analysis tool to run a technical analysis summary for PLTR
 
-use the fetch_peers tool to make a list of comparable companies to IONQ
+use the fetch_peers tool to make a list of comparable companies to PLTR
 
-use the get_yahoo_stats tool to get fundamental summary data for IONQ
+use the get_yahoo_stats tool to get fundamental summary data for PLTR
 
-use news and research tools and web search and tell me what is the latest news for IONQ
+use news and research tools and web search and tell me what is the latest news for PLTR
 
 get_bloomberg_news
 get_reuters_news
@@ -16,17 +16,23 @@ get_yahoo_news
 get_google_finance_news
 get_finviz_news
 get_reddit_news
+
+use news and research tools and web search and tell me what is the latest news for PLTR
+alphavantage
+yfinance
+fmp
+
 use get_morningstar_research to get recent research
 
-summarize IONQ's business profile using perplexity
+summarize PLTR's business profile using perplexity
 
-summarize IONQ's business profile using wikipedia
+summarize PLTR's business profile using wikipedia
 
-summarize IONQ's business from the sec 10-k item 1
+summarize PLTR's business from the sec 10-k item 1
 
-based on everything we discussed so far and anything else you can find on the Web and using tools, write a comprehensive summary of IONQ's business, its fundamental valuation, and technical setup.
+based on everything we discussed so far and anything else you can find on the Web and using tools, write a comprehensive summary of PLTR's business, its fundamental valuation, and technical setup.
 
-that's great. let's dive even deeper.  Create a deep research report on IONQ in the straightforward factual style of a Wall Street equity research analyst,in 8 sections:
+that's great. let's dive even deeper.  Create a deep research report on PLTR in the straightforward factual style of a Wall Street equity research analyst,in 8 sections:
 
 1. Profile
 • history with origin story and key historical milestones
@@ -64,4 +70,4 @@ that's great. let's dive even deeper.  Create a deep research report on IONQ in 
 • Note controversies, reputational risks, and governance concerns if any.
 
 8. Overall Assessment:
-• Summarize the company’s strategic position, risks, opportunities, and any “watch points” for further diligence.
+• Summarize the company’s strategic position, risks, opportunities, the bear case and the bull case, and any “watch points” for further diligence.

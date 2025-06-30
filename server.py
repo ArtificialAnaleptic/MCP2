@@ -1038,6 +1038,10 @@ async def get_reddit_news(
 
 #     return result
 
+# TODO: add get_urls to sources.yaml
+# bring over url extraction code from AInewsbot scrape, either in exraction object or scrape module
+# when get_urls is present, extract urls and return urls as markdown instead of whole page
+
 
 def main():
     """Main entry point for the MCP server."""
