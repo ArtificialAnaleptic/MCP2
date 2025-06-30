@@ -163,8 +163,159 @@ class StockDataExtractor:
 
     def map_exchange(self, source_key: str, exchange: str) -> str:
         """Map exchange codes for specific platforms."""
+        logger.info("Applying exchange mappings for %s", source_key)
         mappings = self.exchanges.get(source_key, {})
         return mappings.get(exchange, exchange)
+
+    async def fetch_page(self, url: str, wait_strategy: str = 'networkidle') -> dict:
+        """Fetch a page using the browser context."""
+        # Get a browser page using the browser context
+        try:
+            page = await self.get_or_create_page()
+
+            # Navigate to the URL with the specified wait strategy
+            response = await page.goto(url, wait_until=wait_strategy)
+            if not response or response.status != 200:
+                return {
+                    "url": url,
+                    "status": "error",
+                    "message": f"Failed to load page (status: {response.status if response else 'unknown'})",
+                }
+
+            # Wait for the page to be fully loaded
+            await page.wait_for_load_state(wait_strategy)
+            content = await page.content()
+            return {
+                "url": url,
+                "status": "success",
+                "content": content,
+            }
+        except Exception as e:
+            logger.error("Error fetching page: %s", e)
+            return {
+                "url": url,
+                "status": "error",
+                "message": str(e),
+            }
+        finally:
+            # Return the page to the pool
+            await self.return_page(page)
+
+    def normalize_page_content(self, content: str) -> str:
+        """Normalize page content."""
+        try:
+            temp_file = Path(
+                f"data/stock_page_{secrets.token_hex(20)}.html")
+            temp_file.parent.mkdir(parents=True, exist_ok=True)
+            temp_file.write_text(content, encoding='utf-8')
+            # Normalize content
+            content = normalize_html(temp_file)
+            # Cleanup temp file
+            temp_file.unlink()
+            return content
+        except Exception as e:
+            logger.error("Failed to normalize page content: %s", e)
+            return content
+
+    async def fetch_source_content(
+        self,
+        source_key: str,
+        symbol: str = None,
+        company: str = None,
+        exchange: str = None,
+        normalize: bool = True,
+        maxlength: int = 999999,
+        **kwargs
+    ) -> dict:
+        """
+        Helper function to fetch and normalize content from any configured source.
+
+        Args:
+            source_key: The key of the source in sources.yaml
+            symbol: The stock symbol to look up
+            company: Optional company name (required for some sources)
+            exchange: Optional exchange code (required for some sources)
+            **kwargs: Additional parameters that might be needed for the URL template
+
+        Returns:
+            dict: Dictionary containing the URL, status, message, and normalized content
+        """
+
+        try:
+            logger.info("Fetching content from %s", source_key)
+
+            if source_key not in self.sources:
+                raise ValueError(
+                    f"Source '{source_key}' not found in configuration")
+
+            source_config = self.sources[source_key]
+
+            # Prepare template variables
+            template_vars = {
+                'symbol': symbol or '',
+                'company': company or '',
+                'exchange': exchange or '',
+                **kwargs
+            }
+
+            # map exchange
+            if hasattr(source_config, 'exchange_mappings') and exchange:
+                template_vars['exchange'] = self.map_exchange(
+                    source_key, exchange)
+                logger.info("Exchange mapping found : %s",
+                            template_vars['exchange'])
+
+            # Format URL with template variables
+            clean_dict = {k: v for k, v in template_vars.items()
+                          if v is not None}
+            required_params = getattr(source_config, 'required_params', [])
+            if any(param not in clean_dict for param in required_params):
+                raise ValueError(f"All required template variables ({required_params}) "
+                                 f"were not found in {clean_dict}")
+            url = source_config.url_template.format(**clean_dict)
+            logger.info("URL: %s", url)
+
+            extractor_response = await self.fetch_page(url, source_config.wait_strategy)
+            if not extractor_response or extractor_response.get('status') != 'success':
+                message = extractor_response.get(
+                    'message') if extractor_response else "Failed to get page content"
+                return {
+                    "url": url,
+                    "status": "error",
+                    "message": message
+                }
+
+            content = extractor_response.get('content')
+            # Save to temp file for normalization
+            if normalize:
+                temp_file = Path(
+                    f"data/stock_page_{source_key}_{int(time.time())}.html")
+                temp_file.parent.mkdir(parents=True, exist_ok=True)
+                temp_file.write_text(content, encoding='utf-8')
+                # Normalize content
+                content = normalize_html(temp_file)
+                # Cleanup temp file
+                temp_file.unlink()
+
+            # truncate content to maxlength
+            if len(content) > maxlength:
+                content = content[:maxlength]
+
+            return {
+                "url": url,
+                "status": "success",
+                "message": f"Successfully loaded {source_config.name}",
+                "content": content,
+                "source": source_key
+            }
+
+        except Exception as e:
+            return {
+                "url": url if 'url' in locals() else None,
+                "status": "error",
+                "message": str(e),
+                "source": source_key
+            }
 
 
 @dataclass
@@ -187,28 +338,33 @@ async def app_lifespan(_server: FastMCP) -> AsyncIterator[AppContext]:
     try:
         # Load configuration for AppContext
         logger.info("Loading configuration...")
-        loaded_sources, loaded_exchanges = load_sources_config()
-        logger.info("Successfully loaded configuration")
+        with open(SOURCES, 'r', encoding='utf-8') as f:
+            config = yaml.safe_load(f)
 
-        # Log loaded exchanges
-        for exchange_name in loaded_exchanges:
+        sources = {}
+        for key, source_data in config['sources'].items():
+            sources[key] = SourceConfig(**source_data)
+        logger.info("Successfully loaded %d sources", len(sources))
+
+        exchange_mappings = config.get('exchange_mappings', {})
+        for exchange_name in exchange_mappings:
             logger.info("Loaded exchange mapping for %s", exchange_name)
 
         # Initialize browser
-        logger.info("Initializing Playwright browser...")
+        logger.info("Initializing global app context...")
         async with async_playwright() as playwright:
             browser = None
             try:
-                logger.info("Launching browser...")
+                logger.info("Launching global browser for scraping...")
                 browser = await get_browser(playwright)
                 logger.info("Browser launched")
 
                 context = AppContext(
                     stock_data_extractor=StockDataExtractor(browser,
-                                                            sources=loaded_sources,
-                                                            exchanges=loaded_exchanges
+                                                            sources=sources,
+                                                            exchanges=exchange_mappings
                                                             ))
-                logger.info("Browser context created")
+                logger.info("Global app context created")
                 # potentially add pages to the pool here
                 yield context
             except Exception as e:
@@ -224,151 +380,6 @@ async def app_lifespan(_server: FastMCP) -> AsyncIterator[AppContext]:
     except Exception as e:
         logger.error("Error in browser_lifespan: %s", str(e), exc_info=True)
         raise
-
-
-def load_sources_config(config_path: str = SOURCES) -> tuple[Dict[str, SourceConfig], Dict[str, Dict[str, str]]]:
-    """Load source configurations from YAML file."""
-    with open(config_path, 'r', encoding='utf-8') as f:
-        config = yaml.safe_load(f)
-
-    sources = {}
-    for key, source_data in config['sources'].items():
-        sources[key] = SourceConfig(**source_data)
-
-    exchange_mappings = config.get('exchange_mappings', {})
-
-    return sources, exchange_mappings
-
-
-async def fetch_source_content(
-    source_key: str,
-    symbol: str = None,
-    company: str = None,
-    exchange: str = None,
-    normalize: bool = True,
-    **kwargs
-) -> dict:
-    """
-    Helper function to fetch and normalize content from any configured source.
-
-    Args:
-        source_key: The key of the source in sources.yaml
-        symbol: The stock symbol to look up
-        company: Optional company name (required for some sources)
-        exchange: Optional exchange code (required for some sources)
-        **kwargs: Additional parameters that might be needed for the URL template
-
-    Returns:
-        dict: Dictionary containing the URL, status, message, and normalized content
-    """
-
-    maxlength = 999999
-
-    try:
-        logger.info("Fetching content from %s", source_key)
-        context = mcp.get_context()
-
-        app_context = context.request_context.lifespan_context
-        # get extractor
-        extractor = app_context.stock_data_extractor
-
-        if source_key not in extractor.sources:
-            raise ValueError(
-                f"Source '{source_key}' not found in configuration")
-
-        source_config = extractor.sources[source_key]
-        page = None
-
-        # Prepare template variables
-        template_vars = {
-            'symbol': symbol or '',
-            'company': company or '',
-            'exchange': exchange or '',
-            **kwargs
-        }
-
-        # map exchange
-        # TODO: make this a member function map_exchange
-        logger.info("Applying exchange mappings for %s", source_key)
-        if hasattr(source_config, 'exchange_mappings') and exchange:
-            mapping = app_context.exchanges.get(source_key)
-            logger.info("Exchange mappings found : %s", str(mapping))
-            template_vars['exchange'] = mapping.get(exchange, exchange)
-
-        # Format URL with template variables
-        clean_dict = {k: v for k, v in template_vars.items() if v is not None}
-        required_params = getattr(source_config, 'required_params', [])
-        if any(param not in clean_dict for param in required_params):
-            raise ValueError(f"All required template variables ({required_params}) "
-                             f"were not found in {clean_dict}")
-        url = source_config.url_template.format(**clean_dict)
-        logger.info("URL: %s", url)
-
-        # Get a browser page using the browser context
-        page = await extractor.get_or_create_page()
-
-        # Navigate to the URL with the specified wait strategy
-        # TODO: make this a member function fetch_page, return response
-        response = await page.goto(url, wait_until=source_config.wait_strategy)
-        if not response or response.status != 200:
-            return {
-                "url": url,
-                "status": "error",
-                "message": f"Failed to load page (status: {response.status if response else 'unknown'})"
-            }
-
-        # Wait for the page to be fully loaded
-        wait_strategy = getattr(source_config, 'wait_strategy', 'networkidle')
-        await page.wait_for_load_state(wait_strategy)
-
-        # Get page content
-        content = await page.content()
-        if not content:
-            return {
-                "url": url,
-                "status": "error",
-                "message": "Failed to get page content"
-            }
-
-        # TODO: make this a member function get_normalized_page_content, return normalized_text
-        # Save to temp file for normalization
-        if normalize:
-            temp_file = Path(
-                f"data/stock_page_{source_key}_{int(time.time())}.html")
-            temp_file.parent.mkdir(parents=True, exist_ok=True)
-            temp_file.write_text(content, encoding='utf-8')
-            # Normalize content
-            content = normalize_html(temp_file)
-            # Cleanup temp file
-            temp_file.unlink()
-
-        # truncate content to maxlength
-        if len(content) > maxlength:
-            content = content[:maxlength]
-
-        return {
-            "url": url,
-            "status": "success",
-            "message": f"Successfully loaded {source_config.name}",
-            "content": content,
-            "source": source_key
-        }
-
-    except Exception as e:
-        return {
-            "url": url if 'url' in locals() else None,
-            "status": "error",
-            "message": str(e),
-            "source": source_key
-        }
-    finally:
-        # Return the page to the pool
-        if page:
-            try:
-                await extractor.return_page(page)
-            except Exception as e:
-                print(
-                    f"Error returning page to pool in finally block: {str(e)}")
 
 
 def fn_get_10k_item_from_symbol(symbol, item="1"):
@@ -429,32 +440,26 @@ async def fetch_url_content(
         # TODO: wrap a function that takes url, wait_strategy, normalize and returns content
         wait_strategy = "networkidle"
         normalize = True
-        MAXLENGTH = 999999
+        maxlength = 999999
 
         logger.info("URL: %s", url)
 
-        ctx = mcp.get_context()
-        browser_ctx = ctx.request_context.lifespan_context
+        mcp_context = mcp.get_context()
+        app_context = mcp_context.request_context.lifespan_context
         # get extractor
-        extractor = browser_ctx.stock_data_extractor
-
-        # Get a browser page using the browser context
-        page = await extractor.get_or_create_page()
-
-        # Navigate to the URL with the specified wait strategy
-        response = await page.goto(url, wait_until=wait_strategy)
-        if not response or response.status != 200:
+        extractor = app_context.stock_data_extractor
+        extractor_response = await extractor.fetch_page(url, wait_strategy)
+        if not extractor_response or extractor_response.get('status') != 'success':
+            message = extractor_response.get(
+                'message') if extractor_response else "Failed to get page content"
             return {
                 "url": url,
                 "status": "error",
-                "message": f"Failed to load page (status: {response.status if response else 'unknown'})"
+                "message": message
             }
 
-        # Wait for the page to be fully loaded, possibly redundant
-        await page.wait_for_load_state(wait_strategy)
+        content = extractor_response.get('content')
 
-        # Get page content
-        content = await page.content()
         if not content:
             return {
                 "url": url,
@@ -462,22 +467,13 @@ async def fetch_url_content(
                 "message": "Failed to get page content"
             }
 
-        # TODO: make this a member function get_normalized_page_content, return normalized_text
-        # Save to temp file for normalization
         if normalize:
-            temp_file = Path(
-                f"data/stock_page_{secrets.token_hex(20)}.html")
-            temp_file.parent.mkdir(parents=True, exist_ok=True)
-            temp_file.write_text(content, encoding='utf-8')
-            # Normalize content
-            content = normalize_html(temp_file)
-            # Cleanup temp file
-            temp_file.unlink()
+            content = extractor.normalize_page_content(content)
 
         return {
             "url": url,
             "status": "success",
-            "content": content[:MAXLENGTH],
+            "content": content[:maxlength],
         }
     except Exception as e:
         return {
@@ -485,14 +481,6 @@ async def fetch_url_content(
             "status": "error",
             "message": str(e)
         }
-    finally:
-        # Return the page to the pool
-        if page:
-            try:
-                await extractor.return_page(page)
-            except Exception as e:
-                print(
-                    f"Error returning page to pool in finally block: {str(e)}")
 
 
 @mcp.tool()
@@ -809,7 +797,10 @@ async def get_bloomberg_news(
     ],
 ) -> dict:
     """Search Bloomberg headlines for a given company name."""
-    return await fetch_source_content("bloomberg", company=company)
+    context = mcp.get_context()
+    app_context = context.request_context.lifespan_context
+    extractor = app_context.stock_data_extractor
+    return await extractor.fetch_source_content("bloomberg", company=company)
 
 
 @mcp.tool()
@@ -823,7 +814,10 @@ async def get_reuters_news(
     ]
 ) -> dict:
     """Search Reuters headlines for a given company name."""
-    return await fetch_source_content("reuters", company=company)
+    context = mcp.get_context()
+    app_context = context.request_context.lifespan_context
+    extractor = app_context.stock_data_extractor
+    return await extractor.fetch_source_content("reuters", company=company)
 
 
 @mcp.tool()
@@ -837,8 +831,11 @@ async def get_yahoo_news(
     ]
 ) -> dict:
     """Search Yahoo Finance headlines for a given stock symbol."""
-    logger.info("Getting Yahoo Finance news for %s", symbol)
-    return await fetch_source_content("yahoo_news", symbol=symbol)
+
+    context = mcp.get_context()
+    app_context = context.request_context.lifespan_context
+    extractor = app_context.stock_data_extractor
+    return await extractor.fetch_source_content("yahoo_news", symbol=symbol)
 
 
 @mcp.tool()
@@ -852,7 +849,10 @@ async def get_yahoo_stats(
     ]
 ) -> dict:
     """Search Yahoo Finance for key fundamental statistics for a given stock symbol."""
-    return await fetch_source_content("yahoo_stats", symbol=symbol)
+    context = mcp.get_context()
+    app_context = context.request_context.lifespan_context
+    extractor = app_context.stock_data_extractor
+    return await extractor.fetch_source_content("yahoo_stats", symbol=symbol)
 
 
 # @mcp.tool()
@@ -901,21 +901,33 @@ async def get_business_insider_news(
     ]
 ) -> dict:
     """Search Business Insider headlines for a given company name."""
-    return await fetch_source_content("business_insider", company=company)
+    context = mcp.get_context()
+    app_context = context.request_context.lifespan_context
+    extractor = app_context.stock_data_extractor
+    return await extractor.fetch_source_content("business_insider", company=company)
 
 
 @mcp.tool()
 async def get_google_finance_news(
-    symbol: Annotated[
-        str,
-        {
-            "description": "The stock symbol",
-            "example": "META"
-        }
-    ]
-) -> dict:
+        symbol: Annotated[
+            str,
+            {
+                "description": "The stock symbol",
+                "example": "META"
+            },
+        ],
+        exchange: Annotated[
+            str,
+            {
+                "description": "The exchange where the stock is traded",
+                "example": "NASDAQ"
+            }
+        ]) -> dict:
     """Search Google Finance for a given stock symbol."""
-    return await fetch_source_content("google_finance", symbol=symbol)
+    context = mcp.get_context()
+    app_context = context.request_context.lifespan_context
+    extractor = app_context.stock_data_extractor
+    return await extractor.fetch_source_content("google_finance", symbol=symbol, exchange=exchange)
 
 # # getting timeouts on morningstar, either needs debugging or they are blocking Playwright somehow
 # @mcp.tool()
@@ -950,7 +962,10 @@ async def get_finviz_news(
     ]
 ) -> dict:
     """Search Finviz for a given stock symbol."""
-    return await fetch_source_content("finviz", symbol=symbol)
+    context = mcp.get_context()
+    app_context = context.request_context.lifespan_context
+    extractor = app_context.stock_data_extractor
+    return await extractor.fetch_source_content("finviz", symbol=symbol)
 
 
 # @mcp.tool()
@@ -992,7 +1007,10 @@ async def get_reddit_news(
     ]
 ) -> dict:
     """Search Reddit for a given company name."""
-    return await fetch_source_content("reddit", company=company)
+    context = mcp.get_context()
+    app_context = context.request_context.lifespan_context
+    extractor = app_context.stock_data_extractor
+    return await extractor.fetch_source_content("reddit", company=company)
 
 # @mcp.tool()
 # def test_params(symbol: str, company: str, exchange: str) -> str:
@@ -1024,7 +1042,17 @@ async def get_reddit_news(
 def main():
     """Main entry point for the MCP server."""
     # Load and display available sources
-    loaded_sources, loaded_exchanges = load_sources_config()
+    with open(SOURCES, 'r', encoding='utf-8') as f:
+        config = yaml.safe_load(f)
+
+    loaded_sources = {}
+    for key, source_data in config['sources'].items():
+        loaded_sources[key] = SourceConfig(**source_data)
+    logger.info("Successfully loaded %d sources", len(loaded_sources))
+
+    loaded_exchanges = config.get('exchange_mappings', {})
+    for exchange_name in loaded_exchanges:
+        logger.info("Loaded exchange mapping for %s", exchange_name)
 
     logger.info("MCP Server - Stock Research")
     logger.info("==========================")
@@ -1045,9 +1073,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-# TODO: # test and review what comes back. s
-# set the tool description
-#
-# implement the other tools

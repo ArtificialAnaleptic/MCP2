@@ -20,7 +20,7 @@ sources:
     data_type: "news"
     include:
       - ^https://www.reuters.com/
-    
+
   yahoo_news:
     name: "Yahoo Finance News"
     description: "Search Yahoo Finance headlines for a given stock symbol."
@@ -62,7 +62,7 @@ sources:
     data_type: "news"
     include:
       - ^https://www.businessinsider.com/
-    
+
   yahoo_stats:
     name: "Yahoo Finance Statistics"
     description: "Search Yahoo Finance key statistics for a given stock symbol."
@@ -88,8 +88,8 @@ sources:
       - myaccount.google.com
       - accounts.google.com
       - goto2.corp.google.com
-      - myactivity.google.com    
-    
+      - myactivity.google.com
+
   stockcharts:
     name: "StockCharts"
     description: "StockCharts is a website that provides technical analysis and charting for stocks, bonds, and other financial instruments."
