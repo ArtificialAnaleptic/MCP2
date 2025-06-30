@@ -5,6 +5,7 @@ sources:
     url_template: "https://www.bloomberg.com/search?query={company}"
     required_params: ["company"]
     wait_strategy: "load"
+    extract_mode: "links"
     rate_limit: 3.0
     data_type: "news"
     include:
@@ -16,6 +17,7 @@ sources:
     url_template: "https://www.reuters.com/site-search/?query={company}&offset=0"
     required_params: ["company"]
     wait_strategy: "load"
+    extract_mode: "links"
     rate_limit: 2.5
     data_type: "news"
     include:
@@ -27,6 +29,7 @@ sources:
     url_template: "https://finance.yahoo.com/quote/{symbol}/news"
     required_params: ["symbol"]
     wait_strategy: "load"
+    extract_mode: "links"
     rate_limit: 1.5
     data_type: "news"
     include:
@@ -38,6 +41,7 @@ sources:
     url_template: "https://www.ft.com/search?q={company}"
     required_params: ["company"]
     wait_strategy: "load"
+    extract_mode: "links"
     rate_limit: 4.0  # FT is strict about rate limiting
     data_type: "news"
     include:
@@ -58,6 +62,7 @@ sources:
     url_template: "https://www.businessinsider.com/answers#{company}"
     required_params: ["company"]
     wait_strategy: "load"
+    extract_mode: "links"
     rate_limit: 2.0
     data_type: "news"
     include:
@@ -114,8 +119,9 @@ sources:
     url_template: "https://www.reddit.com/search?q={company}&include_over_18=on&sort=relevance&t=all"
     required_params: ["company"]
     wait_strategy: "load"
+    extract_mode: "links"
     rate_limit: 1.0
-    data_type: "sentiment"
+    data_type: "news"
     exclude:
       - ^https://chat.reddit.com/
       - ^https://i.redd.it/

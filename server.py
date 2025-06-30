@@ -27,6 +27,8 @@ Run for production with (or just use in Claude Desktop):
 $ mcp run server.py
 """
 # pylint: disable=broad-except
+from urllib.parse import urljoin, urlparse
+from bs4 import BeautifulSoup
 import secrets
 import time
 import re
@@ -108,10 +110,47 @@ class SourceConfig:
     required_params: List[str]
     exchange_mappings: Optional[str] = None
     wait_strategy: str = "load"
+    extract_mode: str = "text"
     rate_limit: float = 2.0
     data_type: str = "general"
     exclude: Optional[List[str]] = None
     include: Optional[List[str]] = None
+
+
+def get_path_from_url(url):
+    """
+    Extracts the path following the top-level domain name from a URL.
+
+    :param url: The URL string.
+    :return: The path component of the URL.
+    """
+    parsed_url = urlparse(url)
+    return parsed_url.path
+
+
+def trimmed_href(link):
+    """
+    Trims everything in the link after a question mark such as a session ID.
+
+    :param link: The input string or bs4 link.
+    :return: The trimmed string.
+    """
+    # Find the position of the question mark
+    if isinstance(link, str):
+        s = link
+    else:
+        s = link.get("href")
+    if s:
+        question_mark_index = s.find("?")
+
+        # If a question mark is found, trim the string up to that point
+        if question_mark_index != -1:
+            return s[:question_mark_index]
+        else:
+            # Return the original string if no question mark is found
+            return s
+    else:
+        return s
 
 
 class StockDataExtractor:
@@ -167,7 +206,7 @@ class StockDataExtractor:
         mappings = self.exchanges.get(source_key, {})
         return mappings.get(exchange, exchange)
 
-    async def fetch_url(self, url: str, wait_strategy: str = 'networkidle', extract_mode='text') -> dict:
+    async def fetch_url(self, url: str, wait_strategy: str = 'networkidle', extract_mode='text', include=[], exclude=[]) -> dict:
         """Fetch a page using the browser context.
         text = normalized text
         raw_html = raw html
@@ -194,14 +233,70 @@ class StockDataExtractor:
                 content = self.normalize_page_content(content)
             elif extract_mode == 'raw_html':
                 pass
-            # elif extract == 'links':
-            #     content = self.extract_links(content)
+            elif extract_mode == 'links':
+                soup = BeautifulSoup(content, 'html.parser')
+                links = soup.find_all("a")
+                logger.info("found %d raw links", len(links))
+                # drop empty text
+                links = [link for link in links if link.get_text(strip=True)]
+                # drop some ArsTechnica links that are just the number of comments and dupe the primary link
+                links = [link for link in links if not re.match(
+                    "^(\d+)$", link.get_text(strip=True))]
+
+                # convert relative links to absolute links using base URL if present
+                base_tag = soup.find('base')
+                base_url = base_tag.get('href') if base_tag else url
+                for link in links:
+                    link["href"] = urljoin(base_url, link.get('href', ""))
+
+                # drop empty url path, i.e. url = toplevel domain
+                links = [link for link in links if len(
+                    get_path_from_url(trimmed_href(link))) > 1]
+                # drop anything that is not http, like javascript: or mailto:
+                links = [link for link in links if link.get(
+                    "href") and link.get("href").startswith("http")]
+                # remove duplicate links
+                links = list(
+                    {link.get("href"): link for link in links}.values())
+
+                logger.info("found %d links after filtering", len(links))
+                logger.info("exclude: %s", exclude)
+                logger.info("include: %s", include)
+                if exclude:
+                    for pattern in exclude:
+                        # filter links by exclusion pattern
+                        links = [
+                            link
+                            for link in links
+                            if link.get("href") is not None and not re.match(pattern, link.get("href"))
+                        ]
+
+                logger.info("found %d links after exclude", len(links))
+                if include:
+                    for pattern in include:
+                        new_links = []
+                        for link in links:
+                            href = link.get("href")
+                            if href and re.match(pattern, href):
+                                new_links.append(link)
+                        links = new_links
+
+                logger.info("found %d links after include", len(links))
+                for link in links:
+                    url = trimmed_href(link)
+                    title = link.get_text(strip=True)
+                    # skip some low quality links that don't have full headline, like link to a Twitter or Threads account
+                    if len(title) <= 3:
+                        continue
+                # convert links to markdown
+                links_markdown = [f"[{a.text}]({a['href']})" for a in links]
+                content = '\n'.join(links_markdown)
             else:
-                logger.error("invalid extract_mode " + extract_mode)
+                logger.error("invalid extract_mode %s", extract_mode)
                 return {
                     "url": url,
                     "status": "error",
-                    "message": "invalid extract_mode " + extract_mode,
+                    "message": "invalid extract_mode %s" % extract_mode,
                 }
 
             return {
@@ -242,7 +337,6 @@ class StockDataExtractor:
         symbol: str = None,
         company: str = None,
         exchange: str = None,
-        normalize: bool = True,
         maxlength: int = 999999,
         **kwargs
     ) -> dict:
@@ -268,6 +362,20 @@ class StockDataExtractor:
                     f"Source '{source_key}' not found in configuration")
 
             source_config = self.sources[source_key]
+            if hasattr(source_config, 'extract_mode') and source_config.extract_mode:
+                extract_mode = source_config.extract_mode
+            else:
+                extract_mode = 'text'
+
+            if hasattr(source_config, 'include') and source_config.include:
+                include = source_config.include
+            else:
+                include = []
+
+            if hasattr(source_config, 'exclude') and source_config.exclude:
+                exclude = source_config.exclude
+            else:
+                exclude = []
 
             # Prepare template variables
             template_vars = {
@@ -293,12 +401,9 @@ class StockDataExtractor:
                                  f"were not found in {clean_dict}")
             url = source_config.url_template.format(**clean_dict)
             logger.info("URL: %s", url)
+            logger.info("Extract mode: %s", extract_mode)
 
-            extract_strategy = 'raw'
-            if normalize:
-                extract_strategy = 'text'
-
-            extractor_response = await self.fetch_url(url, source_config.wait_strategy, extract_strategy)
+            extractor_response = await self.fetch_url(url, source_config.wait_strategy, extract_mode, include, exclude)
 
             if not extractor_response or extractor_response.get('status') != 'success':
                 message = extractor_response.get(
@@ -505,6 +610,57 @@ async def fetch_url_html(
         logger.info("URL: %s", url)
 
         extractor_response = await extractor.fetch_url(url, wait_strategy, extract_mode="raw_html")
+        if not extractor_response or extractor_response.get('status') != 'success':
+            message = extractor_response.get(
+                'message') if extractor_response else "Failed to get page content"
+            return {
+                "url": url,
+                "status": "error",
+                "message": message
+            }
+
+        content = extractor_response.get('content')
+
+        if not content:
+            return {
+                "url": url,
+                "status": "error",
+                "message": "No content"
+            }
+
+        return {
+            "url": url,
+            "status": "success",
+            "content": content,
+        }
+    except Exception as e:
+        return {
+            "url": url,
+            "status": "error",
+            "message": str(e)
+        }
+
+
+@mcp.tool()
+async def fetch_url_links(
+    url: Annotated[
+        str,
+        {
+            "description": "The URL to fetch content from",
+            "example": "https://www.google.com"
+        },
+    ],
+) -> str:
+    """Get the links from a web page. Use to fetch permissioned content where the password is saved in the Firefox profile."""
+    try:
+        mcp_context = mcp.get_context()
+        app_context = mcp_context.request_context.lifespan_context
+        extractor = app_context.stock_data_extractor
+        wait_strategy = "networkidle"
+
+        logger.info("URL: %s", url)
+
+        extractor_response = await extractor.fetch_url(url, wait_strategy, extract_mode="links")
         if not extractor_response or extractor_response.get('status') != 'success':
             message = extractor_response.get(
                 'message') if extractor_response else "Failed to get page content"
