@@ -1,14 +1,15 @@
-We will be using installed tools to analyze Palantir (symbol: PLTR)
+We will be using installed tools to analyze  Peleton Interactive (symbol: PTON)
 
-use the make_stock_chart tool to get a chart of PLTR
+use the make_stock_chart tool to get a chart of PTON
 
-use the fetch_technical_analysis tool to run a technical analysis summary for PLTR
+use the fetch_technical_analysis tool to run a technical analysis summary for PTON
 
-use the fetch_peers tool to make a list of comparable companies to PLTR
+use the fetch_peers tool to make a list of comparable companies to PTON
 
-use the get_yahoo_stats tool to get fundamental summary data for PLTR
+use the get_yahoo_stats tool to get fundamental summary data for PTON
 
-use news and research tools and web search and tell me what is the latest news for PLTR
+---
+use news and research tools and web search and tell me what is the latest news for PTON
 
 get_bloomberg_news
 get_reuters_news
@@ -17,22 +18,30 @@ get_google_finance_news
 get_finviz_news
 get_reddit_news
 
-use news and research tools and web search and tell me what is the latest news for PLTR
+---
+use additional news and research tools and web search and tell me what is the latest news for PTON
 alphavantage
 yfinance
 fmp
 
+---
 use get_morningstar_research to get recent research
+---
 
-summarize PLTR's business profile using perplexity
+summarize PTON's business profile using perplexity
+---
 
-summarize PLTR's business profile using wikipedia
+summarize PTON's business profile using wikipedia
+---
 
-summarize PLTR's business from the sec 10-k item 1
+summarize PTON's business from the sec 10-k item 1
+---
 
-based on everything we discussed so far and anything else you can find on the Web and using tools, write a comprehensive summary of PLTR's business, its fundamental valuation, and technical setup.
+based on everything you found so far and anything else you can discover on the Web and using tools, write a comprehensive summary of PTON's business, its fundamental valuation, and technical setup.
 
-that's great. let's dive even deeper.  Create a deep research report on PLTR in the straightforward factual style of a Wall Street equity research analyst,in 8 sections:
+---
+
+that's great. let's dive even deeper.  Using everything found so far and everything you can find by using tools and doing deep research, write a report on PTON in the straightforward factual style of a Wall Street equity research analyst, in 8 sections:
 
 1. Profile
 • history with origin story and key historical milestones

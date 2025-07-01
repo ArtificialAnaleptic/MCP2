@@ -1139,25 +1139,30 @@ async def get_google_finance_news(
     return await extractor.fetch_source_content("google_finance", symbol=symbol, exchange=exchange)
 
 # # getting timeouts on morningstar, either needs debugging or they are blocking Playwright somehow
-# @mcp.tool()
-# async def get_morningstar_research(
-#     symbol: Annotated[
-#         str,
-#         {
-#             "description": "The stock symbol",
-#             "example": "AAPL"
-#         }
-#     ],
-#     exchange: Annotated[
-#         str,
-#         {
-#             "description": "The exchange where the stock is traded",
-#             "example": "NASDAQ"
-#         }
-#     ]
-# ) -> dict:
-#     """Search Morningstar for a given stock symbol and exchange."""
-#     return await fetch_source_content("morningstar", symbol=symbol, exchange=exchange)
+
+
+@mcp.tool()
+async def get_morningstar_research(
+    symbol: Annotated[
+        str,
+        {
+            "description": "The stock symbol",
+            "example": "AAPL"
+        }
+    ],
+    exchange: Annotated[
+        str,
+        {
+            "description": "The exchange where the stock is traded",
+            "example": "NASDAQ"
+        }
+    ]
+) -> dict:
+    """Search Morningstar for a given stock symbol and exchange."""
+    context = mcp.get_context()
+    app_context = context.request_context.lifespan_context
+    extractor = app_context.stock_data_extractor
+    return await extractor.fetch_source_content("morningstar", symbol=symbol, exchange=exchange)
 
 
 @mcp.tool()
