@@ -62,13 +62,33 @@ $ cp dotenv.txt .env  # then edit as needed
 $ LOGLEVEL=DEBUG mcp dev server.py
 # click to the link in the terminal to open the test page, connect, view tools, and then test them individually
 
-# 7. Use the server in your MCP client of choice. For Claude Desktop, install the provided claude_desktop_config.json file for your platform (macOS, Windows).
+# 7. Use the server in your MCP client of choice. For Claude Desktop, edit the provided claude_desktop_config.json file and move it to the proper location for your platform (macOS, Windows).
+https://claude.ai/download
+https://modelcontextprotocol.io/quickstart/user
 
-# 8. For additional market data MCP servers install these repos
+# 8. For additional optional market data MCP servers install these repos
+Wikipedia MCP (no API key required)
+pip install wikipedia-mcp
+
+Filesystem MCP (use local files, no API key required)
+git clone https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem
+
+Yahoo Finance MCP (no API key required)
 git clone https://github.com/Alex2Yang97/yahoo-finance-mcp.git
+
+FMP MCP (API key required)
 git clone https://github.com/cdtait/fmp-mcp-server
+
+Alpha Vantage MCP (API key required)
 git clone https://github.com/calvernaz/alphavantage.git
 # see alphavantage.patches for edits to alphavantage/src/alphavantage_mcp_server/server.py
+
+Brave Search MCP (API key required)
+npm install -g @modelcontextprotocol/server-brave-search
+
+Perplexity Ask MCP (API key, Docker required)
+Follow setup instructions here:
+https://github.com/ppl-ai/modelcontextprotocol/tree/main
 
 ```
 
